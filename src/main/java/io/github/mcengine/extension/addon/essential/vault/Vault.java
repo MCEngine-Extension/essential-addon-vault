@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Main class for the Vault extension.
  * <p>
- * Registers the {@code /aiaddonexample} command and event listeners.
+ * Registers the {@code /vault} command and event listeners.
  */
 public class Vault implements IMCEngineEssentialAddOn {
 
@@ -50,21 +50,21 @@ public class Vault implements IMCEngineEssentialAddOn {
             commandMapField.setAccessible(true);
             CommandMap commandMap = (CommandMap) commandMapField.get(Bukkit.getServer());
 
-            // Define the /aiaddonexample command
-            Command aiAddonExampleCommand = new Command("aiaddonexample") {
+            // Define the /vault command
+            Command vaultCommand = new Command("vault") {
 
                 /**
-                 * Handles command execution for /aiaddonexample.
+                 * Handles command execution for {@code /vault}.
                  */
                 private final VaultCommand handler = new VaultCommand();
 
                 /**
-                 * Handles tab-completion for /aiaddonexample.
+                 * Handles tab-completion for {@code /vault}.
                  */
                 private final VaultTabCompleter completer = new VaultTabCompleter();
 
                 /**
-                 * Executes the /aiaddonexample command.
+                 * Executes the {@code /vault} command.
                  *
                  * @param sender The command sender.
                  * @param label  The command label.
@@ -77,7 +77,7 @@ public class Vault implements IMCEngineEssentialAddOn {
                 }
 
                 /**
-                 * Handles tab-completion for the /aiaddonexample command.
+                 * Handles tab-completion for the {@code /vault} command.
                  *
                  * @param sender The command sender.
                  * @param alias  The alias used.
@@ -90,11 +90,11 @@ public class Vault implements IMCEngineEssentialAddOn {
                 }
             };
 
-            aiAddonExampleCommand.setDescription("Vault command for the essential add-on.");
-            aiAddonExampleCommand.setUsage("/aiaddonexample");
+            vaultCommand.setDescription("Vault command for the essential add-on.");
+            vaultCommand.setUsage("/vault");
 
-            // Dynamically register the /aiaddonexample command
-            commandMap.register(plugin.getName().toLowerCase(), aiAddonExampleCommand);
+            // Dynamically register the /vault command
+            commandMap.register(plugin.getName().toLowerCase(), vaultCommand);
 
             logger.info("Enabled successfully.");
         } catch (Exception e) {

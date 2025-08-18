@@ -10,7 +10,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 
 /**
- * Example event listener for the Vault extension.
+ * Event listener for the Vault extension.
  */
 public class VaultListener implements Listener {
 

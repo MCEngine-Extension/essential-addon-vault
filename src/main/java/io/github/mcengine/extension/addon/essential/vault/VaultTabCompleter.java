@@ -9,12 +9,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Tab completer for the {@code /aiaddonexample} command.
+ * Tab completer for the {@code /vault} command.
  */
 public class VaultTabCompleter implements TabCompleter {
 
     /**
-     * Provides tab-completion for the {@code /aiaddonexample} command.
+     * Provides tab-completion for the {@code /vault} command.
      *
      * @param sender  The command sender.
      * @param command The command object.
