@@ -1,0 +1,71 @@
+plugins {
+    id 'com.gradleup.shadow' version '9.0.2'
+    id 'java'
+}
+
+ext {
+    user_git_name = System.getenv('USER_GIT_NAME')
+    user_github_token = System.getenv('USER_GITHUB_TOKEN')
+    jarName = System.getenv('PROJECT_NAME') ?: 'Vault'
+}
+
+// Set project version using a property
+version = project.properties[project.name + '.version']
+group = 'io.github.mcengine'
+
+allprojects {
+    group = 'io.github.mcengine'
+
+    apply plugin: 'java'
+    apply plugin: 'com.gradleup.shadow'
+
+    repositories {
+        ext.configureGitHubRepo = { repoName, repoUrl ->
+            maven {
+                name = repoName
+                url = uri(repoUrl)
+                credentials {
+                    username = project.user_git_name
+                    password = project.user_github_token ?: project.repository_token ?: project.organization_token
+                }
+            }
+        }
+
+        configureGitHubRepo('MCEngine Core API', 'https://maven.pkg.github.com/MCEngine-API/core')
+        configureGitHubRepo('MCEngine Essential Api', 'https://maven.pkg.github.com/MCEngine-API/essential')
+        configureGitHubRepo('MCEngine Essential Common', 'https://maven.pkg.github.com/MCEngine-Common/essential')
+
+        mavenCentral()
+        mavenLocal()
+
+        maven {
+            url 'https://hub.spigotmc.org/nexus/content/repositories/snapshots'
+            content {
+                includeGroup 'org.bukkit'
+                includeGroup 'org.spigotmc'
+            }
+        }
+
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        maven { url 'https://oss.sonatype.org/content/repositories/central' }
+    }
+}
+
+dependencies {
+    compileOnly 'org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT'
+
+    compileOnly 'io.github.mcengine:core-api:2025.0.8-18'
+    compileOnly 'io.github.mcengine:essential-api:2025.0.8-18'
+    compileOnly 'io.github.mcengine:essential-common:2025.0.8-18'
+}
+
+shadowJar {
+    archiveClassifier = null
+    archiveBaseName = project.jarName
+}
+
+tasks.named('jar').configure {
+    enabled = false
+}
+
+build.dependsOn(shadowJar)
