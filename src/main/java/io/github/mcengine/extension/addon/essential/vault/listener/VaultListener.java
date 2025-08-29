@@ -1,4 +1,4 @@
-package io.github.mcengine.extension.addon.essential.vault;
+package io.github.mcengine.extension.addon.essential.vault.listener;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;

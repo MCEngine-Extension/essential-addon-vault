@@ -1,4 +1,4 @@
-package io.github.mcengine.extension.addon.essential.vault;
+package io.github.mcengine.extension.addon.essential.vault.tabcompleter;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
