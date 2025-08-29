@@ -25,13 +25,23 @@ public class VaultCommand implements CommandExecutor {
     private static final String META_VAULT_OPEN = "mcengine_vault_open";
 
     /**
+     * Permission node required to open a vault (including via subcommands that open it).
+     */
+    private static final String PERM_USE = "mcengine.essential.vault.use";
+
+    /**
+     * Permission node required to set the vault rows (configuration action).
+     */
+    private static final String PERM_SET = "mcengine.essential.vault.set";
+
+    /**
      * Executes the {@code /vault} command.
      *
      * <p>Supported subcommands:</p>
      * <ul>
-     *   <li>{@code /vault} or {@code /vault open} – open the player's vault</li>
-     *   <li>{@code /vault setrows <1..6>} – open a vault with specified rows</li>
-     *   <li>{@code /vault settitle <title...>} – open a vault with a custom title</li>
+     *   <li>{@code /vault} or {@code /vault open} – open the player's vault (requires {@code mcengine.essential.vault.use})</li>
+     *   <li>{@code /vault setrows <1..6>} – set rows & open (requires {@code mcengine.essential.vault.set} and {@code mcengine.essential.vault.use})</li>
+     *   <li>{@code /vault settitle <title...>} – open with custom title (requires {@code mcengine.essential.vault.use})</li>
      * </ul>
      *
      * @param sender  The source of the command.
@@ -63,10 +73,22 @@ public class VaultCommand implements CommandExecutor {
 
         switch (sub) {
             case "open" -> {
+                if (!player.hasPermission(PERM_USE)) {
+                    player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
+                    return true;
+                }
                 openVault(player, defaultRows, defaultTitle, plugin);
                 return true;
             }
             case "setrows" -> {
+                if (!player.hasPermission(PERM_SET)) {
+                    player.sendMessage(ChatColor.RED + "You do not have permission to set vault rows.");
+                    return true;
+                }
+                if (!player.hasPermission(PERM_USE)) {
+                    player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
+                    return true;
+                }
                 if (args.length < 2) {
                     player.sendMessage(ChatColor.YELLOW + "Usage: /vault setrows <1..6>");
                     return true;
@@ -83,6 +105,10 @@ public class VaultCommand implements CommandExecutor {
                 return true;
             }
             case "settitle" -> {
+                if (!player.hasPermission(PERM_USE)) {
+                    player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
+                    return true;
+                }
                 if (args.length < 2) {
                     player.sendMessage(ChatColor.YELLOW + "Usage: /vault settitle <title...>");
                     return true;
