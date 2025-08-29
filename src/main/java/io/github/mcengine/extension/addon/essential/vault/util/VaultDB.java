@@ -21,12 +21,17 @@ import java.util.*;
  * {@link MCEngineEssentialCommon}. Items (including full metadata/NBT) are stored
  * as a binary payload via {@link ItemIO} serialization.</p>
  *
+ * <h3>Important:</h3>
+ * <p>The Essential DB implementation likely manages a shared pooled/singleton {@link Connection}.
+ * Therefore, this class <strong>never closes</strong> the {@code Connection}; it only closes
+ * statements and result sets. Closing a shared connection would break subsequent calls.</p>
+ *
  * <h3>Tables</h3>
  * <ul>
  *   <li><b>essential_vault_meta</b>:
  *     <ul>
  *       <li>player_uuid (PK)</li>
- *       <li>rows (int) – inventory rows (multiple of 1..6)</li>
+ *       <li>rows (int) – inventory rows (1..6)</li>
  *       <li>title (text) – UI title (nullable)</li>
  *       <li>updated_at (timestamp)</li>
  *     </ul>
@@ -77,12 +82,13 @@ public final class VaultDB {
         plugin = ownerPlugin;
         logger = extLogger;
 
-        try (Connection conn = freshConnection()) {
-            if (conn == null) {
-                if (logger != null) logger.warning("[VaultDB] No DB connection available; schema ensure skipped.");
-                return;
-            }
+        Connection conn = freshConnection();
+        if (conn == null) {
+            if (logger != null) logger.warning("[VaultDB] No DB connection available; schema ensure skipped.");
+            return;
+        }
 
+        try {
             // Resolve binary type per backend
             binType = resolveBinaryType(conn);
 
@@ -115,6 +121,7 @@ public final class VaultDB {
         } catch (SQLException e) {
             if (logger != null) logger.warning("[VaultDB] Schema ensure failed: " + e.getMessage());
         }
+        // DO NOT close conn here (managed by Essential DB layer)
     }
 
     /**
@@ -130,12 +137,13 @@ public final class VaultDB {
         Objects.requireNonNull(playerId, "playerId");
         ensureDefaults();
 
-        try (Connection conn = freshConnection()) {
-            if (conn == null) {
-                if (logger != null) logger.warning("[VaultDB] No DB connection; returning empty vault.");
-                return new PlayerVault(playerId, defaultRows, defaultTitle, 0, new HashMap<>());
-            }
+        Connection conn = freshConnection();
+        if (conn == null) {
+            if (logger != null) logger.warning("[VaultDB] No DB connection; returning empty vault.");
+            return new PlayerVault(playerId, defaultRows, defaultTitle, 0, new HashMap<>());
+        }
 
+        try {
             // Load meta or default
             int rows = defaultRows;
             String title = defaultTitle;
@@ -174,6 +182,7 @@ public final class VaultDB {
             if (logger != null) logger.warning("[VaultDB] loadPlayerVault failed: " + e.getMessage());
             return new PlayerVault(playerId, defaultRows, defaultTitle, 0, new HashMap<>());
         }
+        // DO NOT close conn
     }
 
     /**
@@ -202,74 +211,78 @@ public final class VaultDB {
             logger.warning("[VaultDB] Inventory size (" + inventory.getSize() + ") does not match rows*9 (" + expectedSize + "). Proceeding anyway.");
         }
 
-        try (Connection conn = freshConnection()) {
-            if (conn == null) {
-                if (logger != null) logger.warning("[VaultDB] No DB connection; save skipped.");
-                return false;
-            }
+        Connection conn = freshConnection();
+        if (conn == null) {
+            if (logger != null) logger.warning("[VaultDB] No DB connection; save skipped.");
+            return false;
+        }
 
-            conn.setAutoCommit(false);
-            try {
-                // Upsert meta
-                try (PreparedStatement upd = conn.prepareStatement(
-                        "UPDATE essential_vault_meta SET rows=?, title=?, updated_at=? WHERE player_uuid=?")) {
-                    upd.setInt(1, vault.getRows());
-                    upd.setString(2, vault.getTitle());
-                    upd.setTimestamp(3, Timestamp.from(Instant.now()));
-                    upd.setString(4, vault.getPlayerId().toString());
-                    int updated = upd.executeUpdate();
-                    if (updated == 0) {
-                        try (PreparedStatement ins = conn.prepareStatement(
-                                "INSERT INTO essential_vault_meta (player_uuid, rows, title, updated_at) VALUES (?,?,?,?)")) {
-                            ins.setString(1, vault.getPlayerId().toString());
-                            ins.setInt(2, vault.getRows());
-                            ins.setString(3, vault.getTitle());
-                            ins.setTimestamp(4, Timestamp.from(Instant.now()));
-                            ins.executeUpdate();
-                        }
-                    }
-                }
-
-                // Clear existing items for this page
-                try (PreparedStatement del = conn.prepareStatement(
-                        "DELETE FROM essential_vault_item WHERE player_uuid=? AND page=?")) {
-                    del.setString(1, vault.getPlayerId().toString());
-                    del.setInt(2, page);
-                    del.executeUpdate();
-                }
-
-                // Insert items
-                String sql = "INSERT INTO essential_vault_item (player_uuid, page, slot, item_bytes) VALUES (?,?,?,?)";
-                try (PreparedStatement ins = conn.prepareStatement(sql)) {
-                    for (int slot = 0; slot < inventory.getSize(); slot++) {
-                        ItemStack stack = inventory.getItem(slot);
-                        if (stack == null || stack.getType().isAir()) continue;
-                        byte[] bytes = ItemIO.toBytes(stack);
-                        if (bytes == null || bytes.length == 0) continue;
-
-                        ins.setString(1, vault.getPlayerId().toString());
-                        ins.setInt(2, page);
-                        ins.setInt(3, slot);
-                        ins.setBytes(4, bytes);
-                        ins.addBatch();
-                    }
-                    ins.executeBatch();
-                }
-
-                conn.commit();
-                if (logger != null) logger.info("[VaultDB] Saved vault for " + vault.getPlayerId() + " (page=" + page + ").");
-                return true;
-            } catch (SQLException ex) {
-                conn.rollback();
-                throw ex;
-            } finally {
-                try {
-                    conn.setAutoCommit(true);
-                } catch (SQLException ignore) { /* ignore */ }
-            }
+        boolean originalAutoCommit;
+        try {
+            originalAutoCommit = conn.getAutoCommit();
         } catch (SQLException e) {
+            originalAutoCommit = true;
+        }
+
+        try {
+            conn.setAutoCommit(false);
+
+            // Upsert meta
+            try (PreparedStatement upd = conn.prepareStatement(
+                    "UPDATE essential_vault_meta SET rows=?, title=?, updated_at=? WHERE player_uuid=?")) {
+                upd.setInt(1, vault.getRows());
+                upd.setString(2, vault.getTitle());
+                upd.setTimestamp(3, Timestamp.from(Instant.now()));
+                upd.setString(4, vault.getPlayerId().toString());
+                int updated = upd.executeUpdate();
+                if (updated == 0) {
+                    try (PreparedStatement ins = conn.prepareStatement(
+                            "INSERT INTO essential_vault_meta (player_uuid, rows, title, updated_at) VALUES (?,?,?,?)")) {
+                        ins.setString(1, vault.getPlayerId().toString());
+                        ins.setInt(2, vault.getRows());
+                        ins.setString(3, vault.getTitle());
+                        ins.setTimestamp(4, Timestamp.from(Instant.now()));
+                        ins.executeUpdate();
+                    }
+                }
+            }
+
+            // Clear existing items for this page
+            try (PreparedStatement del = conn.prepareStatement(
+                    "DELETE FROM essential_vault_item WHERE player_uuid=? AND page=?")) {
+                del.setString(1, vault.getPlayerId().toString());
+                del.setInt(2, page);
+                del.executeUpdate();
+            }
+
+            // Insert items
+            String sql = "INSERT INTO essential_vault_item (player_uuid, page, slot, item_bytes) VALUES (?,?,?,?)";
+            try (PreparedStatement ins = conn.prepareStatement(sql)) {
+                for (int slot = 0; slot < inventory.getSize(); slot++) {
+                    ItemStack stack = inventory.getItem(slot);
+                    if (stack == null || stack.getType().isAir()) continue;
+                    byte[] bytes = ItemIO.toBytes(stack);
+                    if (bytes == null || bytes.length == 0) continue;
+
+                    ins.setString(1, vault.getPlayerId().toString());
+                    ins.setInt(2, page);
+                    ins.setInt(3, slot);
+                    ins.setBytes(4, bytes);
+                    ins.addBatch();
+                }
+                ins.executeBatch();
+            }
+
+            conn.commit();
+            if (logger != null) logger.info("[VaultDB] Saved vault for " + vault.getPlayerId() + " (page=" + page + ").");
+            return true;
+        } catch (SQLException e) {
+            try { conn.rollback(); } catch (SQLException ignore) { /* ignore */ }
             if (logger != null) logger.warning("[VaultDB] savePlayerVault failed: " + e.getMessage());
             return false;
+        } finally {
+            try { conn.setAutoCommit(originalAutoCommit); } catch (SQLException ignore) { /* ignore */ }
+            // DO NOT close conn
         }
     }
 
@@ -283,37 +296,43 @@ public final class VaultDB {
         Objects.requireNonNull(playerId, "playerId");
         ensureDefaults();
 
-        try (Connection conn = freshConnection()) {
-            if (conn == null) {
-                if (logger != null) logger.warning("[VaultDB] No DB connection; clear skipped.");
-                return false;
-            }
-            conn.setAutoCommit(false);
-            try {
-                try (PreparedStatement delItems = conn.prepareStatement(
-                        "DELETE FROM essential_vault_item WHERE player_uuid=?")) {
-                    delItems.setString(1, playerId.toString());
-                    delItems.executeUpdate();
-                }
-                try (PreparedStatement delMeta = conn.prepareStatement(
-                        "DELETE FROM essential_vault_meta WHERE player_uuid=?")) {
-                    delMeta.setString(1, playerId.toString());
-                    delMeta.executeUpdate();
-                }
-                conn.commit();
-                if (logger != null) logger.info("[VaultDB] Cleared vault for " + playerId + ".");
-                return true;
-            } catch (SQLException ex) {
-                conn.rollback();
-                throw ex;
-            } finally {
-                try {
-                    conn.setAutoCommit(true);
-                } catch (SQLException ignore) { /* ignore */ }
-            }
+        Connection conn = freshConnection();
+        if (conn == null) {
+            if (logger != null) logger.warning("[VaultDB] No DB connection; clear skipped.");
+            return false;
+        }
+
+        boolean originalAutoCommit;
+        try {
+            originalAutoCommit = conn.getAutoCommit();
         } catch (SQLException e) {
+            originalAutoCommit = true;
+        }
+
+        try {
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement delItems = conn.prepareStatement(
+                    "DELETE FROM essential_vault_item WHERE player_uuid=?")) {
+                delItems.setString(1, playerId.toString());
+                delItems.executeUpdate();
+            }
+            try (PreparedStatement delMeta = conn.prepareStatement(
+                    "DELETE FROM essential_vault_meta WHERE player_uuid=?")) {
+                delMeta.setString(1, playerId.toString());
+                delMeta.executeUpdate();
+            }
+
+            conn.commit();
+            if (logger != null) logger.info("[VaultDB] Cleared vault for " + playerId + ".");
+            return true;
+        } catch (SQLException e) {
+            try { conn.rollback(); } catch (SQLException ignore) { /* ignore */ }
             if (logger != null) logger.warning("[VaultDB] clearPlayerVault failed: " + e.getMessage());
             return false;
+        } finally {
+            try { conn.setAutoCommit(originalAutoCommit); } catch (SQLException ignore) { /* ignore */ }
+            // DO NOT close conn
         }
     }
 
@@ -359,8 +378,8 @@ public final class VaultDB {
     // --------------------
 
     /**
-     * Attempts to acquire a fresh, open {@link Connection}. If the first call
-     * returns a closed connection, retries once more.
+     * Returns the current DB {@link Connection} without closing it.
+     * If the connection is closed, attempts a single re-fetch.
      *
      * @return an open connection or {@code null} if unavailable
      */
@@ -371,24 +390,15 @@ public final class VaultDB {
                     : null;
             if (c == null) return null;
             if (c.isClosed()) {
-                // Retry once
-                try { c.close(); } catch (Exception ignore) { /* ignore */ }
-                c = MCEngineEssentialCommon.getApi().getDBConnection();
+                // Attempt a re-fetch (DB layer should hand us a usable handle)
+                c = (MCEngineEssentialCommon.getApi() != null)
+                        ? MCEngineEssentialCommon.getApi().getDBConnection()
+                        : null;
                 if (c == null || c.isClosed()) return null;
             }
             return c;
         } catch (SQLException e) {
-            // Retry path
-            try {
-                Connection c2 = (MCEngineEssentialCommon.getApi() != null)
-                        ? MCEngineEssentialCommon.getApi().getDBConnection()
-                        : null;
-                if (c2 == null) return null;
-                if (c2.isClosed()) return null;
-                return c2;
-            } catch (SQLException ex) {
-                return null;
-            }
+            return null;
         }
     }
 
@@ -398,7 +408,8 @@ public final class VaultDB {
             logger = new MCEngineExtensionLogger(plugin, "AddOn", "EssentialVault");
         }
         if (binType == null) {
-            try (Connection c = freshConnection()) {
+            Connection c = freshConnection();
+            try {
                 if (c != null) binType = resolveBinaryType(c);
             } catch (SQLException ignored) {}
             if (binType == null) binType = "BLOB";
