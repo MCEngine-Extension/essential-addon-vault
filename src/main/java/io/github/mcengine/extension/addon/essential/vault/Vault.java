@@ -7,6 +7,7 @@ import io.github.mcengine.api.essential.extension.addon.IMCEngineEssentialAddOn;
 import io.github.mcengine.extension.addon.essential.vault.VaultCommand;
 import io.github.mcengine.extension.addon.essential.vault.VaultListener;
 import io.github.mcengine.extension.addon.essential.vault.VaultTabCompleter;
+import io.github.mcengine.extension.addon.essential.vault.util.VaultDB;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -27,6 +28,8 @@ public class Vault implements IMCEngineEssentialAddOn {
 
     /**
      * Logger instance for the Vault extension.
+     * <p>
+     * Used for initialization messages and error reporting.
      */
     private MCEngineExtensionLogger logger;
 
@@ -41,6 +44,9 @@ public class Vault implements IMCEngineEssentialAddOn {
         logger = new MCEngineExtensionLogger(plugin, "AddOn", "EssentialVault");
 
         try {
+            // Ensure DB schema for the vault is present before usage.
+            VaultDB.ensureSchema(plugin, logger);
+
             // Register event listener
             PluginManager pluginManager = Bukkit.getPluginManager();
             pluginManager.registerEvents(new VaultListener(plugin, logger), plugin);
