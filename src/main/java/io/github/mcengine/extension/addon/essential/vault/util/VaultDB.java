@@ -77,7 +77,7 @@ public final class VaultDB {
         plugin = ownerPlugin;
         logger = extLogger;
 
-        try (Connection conn = MCEngineEssentialCommon.getApi().getDBConnection()) {
+        try (Connection conn = freshConnection()) {
             if (conn == null) {
                 if (logger != null) logger.warning("[VaultDB] No DB connection available; schema ensure skipped.");
                 return;
@@ -130,7 +130,7 @@ public final class VaultDB {
         Objects.requireNonNull(playerId, "playerId");
         ensureDefaults();
 
-        try (Connection conn = MCEngineEssentialCommon.getApi().getDBConnection()) {
+        try (Connection conn = freshConnection()) {
             if (conn == null) {
                 if (logger != null) logger.warning("[VaultDB] No DB connection; returning empty vault.");
                 return new PlayerVault(playerId, defaultRows, defaultTitle, 0, new HashMap<>());
@@ -189,8 +189,9 @@ public final class VaultDB {
      *
      * @param vault     the vault metadata
      * @param inventory the inventory to persist (its size should match {@code rows * 9})
+     * @return {@code true} if the save completed successfully; {@code false} otherwise
      */
-    public static void savePlayerVault(PlayerVault vault, Inventory inventory) {
+    public static boolean savePlayerVault(PlayerVault vault, Inventory inventory) {
         Objects.requireNonNull(vault, "vault");
         Objects.requireNonNull(inventory, "inventory");
         ensureDefaults();
@@ -201,16 +202,15 @@ public final class VaultDB {
             logger.warning("[VaultDB] Inventory size (" + inventory.getSize() + ") does not match rows*9 (" + expectedSize + "). Proceeding anyway.");
         }
 
-        try (Connection conn = MCEngineEssentialCommon.getApi().getDBConnection()) {
+        try (Connection conn = freshConnection()) {
             if (conn == null) {
                 if (logger != null) logger.warning("[VaultDB] No DB connection; save skipped.");
-                return;
+                return false;
             }
 
             conn.setAutoCommit(false);
             try {
                 // Upsert meta
-                // Try update first; if 0 rows, insert.
                 try (PreparedStatement upd = conn.prepareStatement(
                         "UPDATE essential_vault_meta SET rows=?, title=?, updated_at=? WHERE player_uuid=?")) {
                     upd.setInt(1, vault.getRows());
@@ -258,14 +258,18 @@ public final class VaultDB {
 
                 conn.commit();
                 if (logger != null) logger.info("[VaultDB] Saved vault for " + vault.getPlayerId() + " (page=" + page + ").");
+                return true;
             } catch (SQLException ex) {
                 conn.rollback();
                 throw ex;
             } finally {
-                conn.setAutoCommit(true);
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException ignore) { /* ignore */ }
             }
         } catch (SQLException e) {
             if (logger != null) logger.warning("[VaultDB] savePlayerVault failed: " + e.getMessage());
+            return false;
         }
     }
 
@@ -273,15 +277,16 @@ public final class VaultDB {
      * Deletes all stored vault items for a player (all pages) and removes metadata.
      *
      * @param playerId player UUID
+     * @return {@code true} if rows were deleted without SQL error; {@code false} otherwise
      */
-    public static void clearPlayerVault(UUID playerId) {
+    public static boolean clearPlayerVault(UUID playerId) {
         Objects.requireNonNull(playerId, "playerId");
         ensureDefaults();
 
-        try (Connection conn = MCEngineEssentialCommon.getApi().getDBConnection()) {
+        try (Connection conn = freshConnection()) {
             if (conn == null) {
                 if (logger != null) logger.warning("[VaultDB] No DB connection; clear skipped.");
-                return;
+                return false;
             }
             conn.setAutoCommit(false);
             try {
@@ -297,14 +302,18 @@ public final class VaultDB {
                 }
                 conn.commit();
                 if (logger != null) logger.info("[VaultDB] Cleared vault for " + playerId + ".");
+                return true;
             } catch (SQLException ex) {
                 conn.rollback();
                 throw ex;
             } finally {
-                conn.setAutoCommit(true);
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException ignore) { /* ignore */ }
             }
         } catch (SQLException e) {
             if (logger != null) logger.warning("[VaultDB] clearPlayerVault failed: " + e.getMessage());
+            return false;
         }
     }
 
@@ -349,13 +358,47 @@ public final class VaultDB {
     // Internal helpers
     // --------------------
 
+    /**
+     * Attempts to acquire a fresh, open {@link Connection}. If the first call
+     * returns a closed connection, retries once more.
+     *
+     * @return an open connection or {@code null} if unavailable
+     */
+    private static Connection freshConnection() {
+        try {
+            Connection c = (MCEngineEssentialCommon.getApi() != null)
+                    ? MCEngineEssentialCommon.getApi().getDBConnection()
+                    : null;
+            if (c == null) return null;
+            if (c.isClosed()) {
+                // Retry once
+                try { c.close(); } catch (Exception ignore) { /* ignore */ }
+                c = MCEngineEssentialCommon.getApi().getDBConnection();
+                if (c == null || c.isClosed()) return null;
+            }
+            return c;
+        } catch (SQLException e) {
+            // Retry path
+            try {
+                Connection c2 = (MCEngineEssentialCommon.getApi() != null)
+                        ? MCEngineEssentialCommon.getApi().getDBConnection()
+                        : null;
+                if (c2 == null) return null;
+                if (c2.isClosed()) return null;
+                return c2;
+            } catch (SQLException ex) {
+                return null;
+            }
+        }
+    }
+
     private static void ensureDefaults() {
         if (plugin == null) plugin = MCEngineEssentialCommon.getApi() != null ? MCEngineEssentialCommon.getApi().getPlugin() : null;
         if (logger == null && plugin != null) {
             logger = new MCEngineExtensionLogger(plugin, "AddOn", "EssentialVault");
         }
         if (binType == null) {
-            try (Connection c = MCEngineEssentialCommon.getApi().getDBConnection()) {
+            try (Connection c = freshConnection()) {
                 if (c != null) binType = resolveBinaryType(c);
             } catch (SQLException ignored) {}
             if (binType == null) binType = "BLOB";

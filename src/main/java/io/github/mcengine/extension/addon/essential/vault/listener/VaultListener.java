@@ -94,9 +94,14 @@ public class VaultListener implements Listener {
 
         PlayerVault pv = new PlayerVault(player.getUniqueId(), rows, title, 0, java.util.Collections.emptyMap());
         VaultDB.captureInventory(pv, inv);
-        VaultDB.savePlayerVault(pv, inv);
+        boolean ok = VaultDB.savePlayerVault(pv, inv);
 
-        player.sendMessage(ChatColor.GREEN + "Vault saved.");
-        logger.info("Persisted vault for " + player.getName() + " (" + (rows * 9) + " slots).");
+        if (ok) {
+            player.sendMessage(ChatColor.GREEN + "Vault saved.");
+            logger.info("Persisted vault for " + player.getName() + " (" + (rows * 9) + " slots).");
+        } else {
+            player.sendMessage(ChatColor.RED + "Vault could not be saved. Please contact an admin.");
+            logger.warning("Failed to persist vault for " + player.getName() + ".");
+        }
     }
 }
