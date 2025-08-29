@@ -189,9 +189,14 @@ public final class VaultDB {
      * Persists the provided {@link PlayerVault} metadata and all non-null items in
      * the given inventory to the database in a single transaction (per page).
      *
+     * <p><strong>Rows/title are no longer mutated on save.</strong> Once a player's
+     * meta exists, this method only updates {@code updated_at} and the item rows.
+     * If no meta exists yet for the player, it inserts one using the values from
+     * the provided {@link PlayerVault}.</p>
+     *
      * <p>Persistence behavior:</p>
      * <ul>
-     *   <li>Upserts {@code essential_vault_meta} (rows/title/updated_at).</li>
+     *   <li>Insert meta if absent; otherwise only bump {@code updated_at}.</li>
      *   <li>Deletes existing {@code essential_vault_item} rows for the same player/page.</li>
      *   <li>Inserts an entry for each non-null inventory slot.</li>
      * </ul>
@@ -227,23 +232,33 @@ public final class VaultDB {
         try {
             conn.setAutoCommit(false);
 
-            // Upsert meta
-            try (PreparedStatement upd = conn.prepareStatement(
-                    "UPDATE essential_vault_meta SET rows=?, title=?, updated_at=? WHERE player_uuid=?")) {
-                upd.setInt(1, vault.getRows());
-                upd.setString(2, vault.getTitle());
-                upd.setTimestamp(3, Timestamp.from(Instant.now()));
-                upd.setString(4, vault.getPlayerId().toString());
-                int updated = upd.executeUpdate();
-                if (updated == 0) {
-                    try (PreparedStatement ins = conn.prepareStatement(
-                            "INSERT INTO essential_vault_meta (player_uuid, rows, title, updated_at) VALUES (?,?,?,?)")) {
-                        ins.setString(1, vault.getPlayerId().toString());
-                        ins.setInt(2, vault.getRows());
-                        ins.setString(3, vault.getTitle());
-                        ins.setTimestamp(4, Timestamp.from(Instant.now()));
-                        ins.executeUpdate();
-                    }
+            // Determine if meta exists
+            boolean hasMeta = false;
+            try (PreparedStatement chk = conn.prepareStatement(
+                    "SELECT 1 FROM essential_vault_meta WHERE player_uuid=?")) {
+                chk.setString(1, vault.getPlayerId().toString());
+                try (ResultSet rs = chk.executeQuery()) {
+                    hasMeta = rs.next();
+                }
+            }
+
+            if (hasMeta) {
+                // Keep rows/title unchanged; only bump updated_at
+                try (PreparedStatement upd = conn.prepareStatement(
+                        "UPDATE essential_vault_meta SET updated_at=? WHERE player_uuid=?")) {
+                    upd.setTimestamp(1, Timestamp.from(Instant.now()));
+                    upd.setString(2, vault.getPlayerId().toString());
+                    upd.executeUpdate();
+                }
+            } else {
+                // First-time insert uses the provided rows/title
+                try (PreparedStatement ins = conn.prepareStatement(
+                        "INSERT INTO essential_vault_meta (player_uuid, rows, title, updated_at) VALUES (?,?,?,?)")) {
+                    ins.setString(1, vault.getPlayerId().toString());
+                    ins.setInt(2, vault.getRows());
+                    ins.setString(3, vault.getTitle());
+                    ins.setTimestamp(4, Timestamp.from(Instant.now()));
+                    ins.executeUpdate();
                 }
             }
 
