@@ -15,6 +15,12 @@ import org.bukkit.plugin.Plugin;
 
 /**
  * Handles {@code /vault} command logic for the Vault extension.
+ *
+ * <p>Supported usage:</p>
+ * <ul>
+ *   <li>{@code /vault} – open the player's vault (requires {@code mcengine.essential.vault.use})</li>
+ *   <li>{@code /vault open} – same as above</li>
+ * </ul>
  */
 public class VaultCommand implements CommandExecutor {
 
@@ -25,24 +31,12 @@ public class VaultCommand implements CommandExecutor {
     private static final String META_VAULT_OPEN = "mcengine_vault_open";
 
     /**
-     * Permission node required to open a vault (including via subcommands that open it).
+     * Permission node required to open a vault.
      */
     private static final String PERM_USE = "mcengine.essential.vault.use";
 
     /**
-     * Permission node required to set the vault rows (configuration action).
-     */
-    private static final String PERM_SET = "mcengine.essential.vault.set";
-
-    /**
      * Executes the {@code /vault} command.
-     *
-     * <p>Supported subcommands:</p>
-     * <ul>
-     *   <li>{@code /vault} or {@code /vault open} – open the player's vault (requires {@code mcengine.essential.vault.use})</li>
-     *   <li>{@code /vault setrows <1..6>} – set rows & open (requires {@code mcengine.essential.vault.set} and {@code mcengine.essential.vault.use})</li>
-     *   <li>{@code /vault settitle <title...>} – open with custom title (requires {@code mcengine.essential.vault.use})</li>
-     * </ul>
      *
      * @param sender  The source of the command.
      * @param command The command which was executed.
@@ -63,6 +57,11 @@ public class VaultCommand implements CommandExecutor {
             return true;
         }
 
+        if (!player.hasPermission(PERM_USE)) {
+            player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
+            return true;
+        }
+
         // Defaults from config if present
         int defaultRows = plugin.getConfig().getInt("vault.rows", 6);
         if (defaultRows < 1) defaultRows = 1;
@@ -73,57 +72,14 @@ public class VaultCommand implements CommandExecutor {
 
         switch (sub) {
             case "open" -> {
-                if (!player.hasPermission(PERM_USE)) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
-                    return true;
-                }
                 openVault(player, defaultRows, defaultTitle, plugin);
                 return true;
             }
-            case "setrows" -> {
-                if (!player.hasPermission(PERM_SET)) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to set vault rows.");
-                    return true;
-                }
-                if (!player.hasPermission(PERM_USE)) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
-                    return true;
-                }
-                if (args.length < 2) {
-                    player.sendMessage(ChatColor.YELLOW + "Usage: /vault setrows <1..6>");
-                    return true;
-                }
-                int rows;
-                try {
-                    rows = Integer.parseInt(args[1]);
-                } catch (NumberFormatException nfe) {
-                    player.sendMessage(ChatColor.RED + "Rows must be a number between 1 and 6.");
-                    return true;
-                }
-                rows = Math.max(1, Math.min(6, rows));
-                openVault(player, rows, defaultTitle, plugin);
-                return true;
-            }
-            case "settitle" -> {
-                if (!player.hasPermission(PERM_USE)) {
-                    player.sendMessage(ChatColor.RED + "You do not have permission to use the vault.");
-                    return true;
-                }
-                if (args.length < 2) {
-                    player.sendMessage(ChatColor.YELLOW + "Usage: /vault settitle <title...>");
-                    return true;
-                }
-                String title = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
-                if (title.isBlank()) title = defaultTitle;
-                openVault(player, defaultRows, title, plugin);
-                return true;
-            }
             default -> {
-                // Keep your existing command shape but show helpful usage.
+                // Minimal help now that setrows/settitle are removed
                 player.sendMessage(ChatColor.AQUA + "Vault commands:");
                 player.sendMessage(ChatColor.GRAY + " • /vault" + ChatColor.DARK_GRAY + " – open your vault");
-                player.sendMessage(ChatColor.GRAY + " • /vault setrows <1..6>");
-                player.sendMessage(ChatColor.GRAY + " • /vault settitle <title>");
+                player.sendMessage(ChatColor.GRAY + " • /vault open");
                 return true;
             }
         }
@@ -147,7 +103,6 @@ public class VaultCommand implements CommandExecutor {
 
         player.openInventory(inv);
         player.sendMessage(ChatColor.GREEN + "Vault opened (" + (rows * 9) + " slots).");
-        // Optional: async task could refresh, but we keep it simple & synchronous here.
         Bukkit.getScheduler().runTaskLater(owningPlugin, () -> { /* no-op hook */ }, 1L);
     }
 
