@@ -1,6 +1,6 @@
 package io.github.mcengine.extension.addon.essential.vault.listener;
 
-import org.bukkit.Bukkit;
+import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -14,18 +14,21 @@ import org.bukkit.plugin.Plugin;
  */
 public class VaultListener implements Listener {
 
-    /**
-     * Plugin instance used by this listener.
-     */
+    /** Plugin instance used by this listener. */
     private final Plugin plugin;
+
+    /** Logger instance for the Vault extension. */
+    private final MCEngineExtensionLogger logger;
 
     /**
      * Constructs a new {@link VaultListener}.
      *
      * @param plugin The plugin instance.
+     * @param logger The logger instance.
      */
-    public VaultListener(Plugin plugin) {
+    public VaultListener(Plugin plugin, MCEngineExtensionLogger logger) {
         this.plugin = plugin;
+        this.logger = logger;
     }
 
     /**
@@ -40,13 +43,13 @@ public class VaultListener implements Listener {
     }
 
     /**
-     * Handles player quit event and logs the departure.
+     * Handles player quit event and logs the departure using the extension logger.
      *
      * @param event The player quit event.
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        Bukkit.getLogger().info("[Vault][essential-addon-vault] " + player.getName() + " has left the server.");
+        logger.info(player.getName() + " has left the server.");
     }
 }

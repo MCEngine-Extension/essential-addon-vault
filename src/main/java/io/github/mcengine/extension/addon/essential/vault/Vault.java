@@ -38,12 +38,12 @@ public class Vault implements IMCEngineEssentialAddOn {
      */
     @Override
     public void onLoad(Plugin plugin) {
-        logger = new MCEngineExtensionLogger(plugin, "Vault", "EssentialVault");
+        logger = new MCEngineExtensionLogger(plugin, "AddOn", "EssentialVault");
 
         try {
             // Register event listener
             PluginManager pluginManager = Bukkit.getPluginManager();
-            pluginManager.registerEvents(new VaultListener(plugin), plugin);
+            pluginManager.registerEvents(new VaultListener(plugin, logger), plugin);
 
             // Reflectively access Bukkit's CommandMap
             Field commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
@@ -53,37 +53,17 @@ public class Vault implements IMCEngineEssentialAddOn {
             // Define the /vault command
             Command vaultCommand = new Command("vault") {
 
-                /**
-                 * Handles command execution for {@code /vault}.
-                 */
+                /** Handles command execution for {@code /vault}. */
                 private final VaultCommand handler = new VaultCommand();
 
-                /**
-                 * Handles tab-completion for {@code /vault}.
-                 */
+                /** Handles tab-completion for {@code /vault}. */
                 private final VaultTabCompleter completer = new VaultTabCompleter();
 
-                /**
-                 * Executes the {@code /vault} command.
-                 *
-                 * @param sender The command sender.
-                 * @param label  The command label.
-                 * @param args   The command arguments.
-                 * @return true if successful.
-                 */
                 @Override
                 public boolean execute(CommandSender sender, String label, String[] args) {
                     return handler.onCommand(sender, this, label, args);
                 }
 
-                /**
-                 * Handles tab-completion for the {@code /vault} command.
-                 *
-                 * @param sender The command sender.
-                 * @param alias  The alias used.
-                 * @param args   The current arguments.
-                 * @return A list of possible completions.
-                 */
                 @Override
                 public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
                     return completer.onTabComplete(sender, this, alias, args);
