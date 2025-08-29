@@ -4,9 +4,9 @@ import io.github.mcengine.api.core.MCEngineCoreApi;
 import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
 import io.github.mcengine.api.essential.extension.addon.IMCEngineEssentialAddOn;
 
-import io.github.mcengine.extension.addon.essential.vault.VaultCommand;
-import io.github.mcengine.extension.addon.essential.vault.VaultListener;
-import io.github.mcengine.extension.addon.essential.vault.VaultTabCompleter;
+import io.github.mcengine.extension.addon.essential.vault.command.VaultCommand;
+import io.github.mcengine.extension.addon.essential.vault.listener.VaultListener;
+import io.github.mcengine.extension.addon.essential.vault.tabcompleter.VaultTabCompleter;
 import io.github.mcengine.extension.addon.essential.vault.util.VaultDB;
 
 import org.bukkit.Bukkit;
