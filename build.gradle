@@ -6,7 +6,7 @@ plugins {
 ext {
     user_git_name = System.getenv('USER_GIT_NAME')
     user_github_token = System.getenv('USER_GITHUB_TOKEN')
-    jarName = System.getenv('PROJECT_NAME') ?: 'Vault'
+    jarName = System.getenv('PROJECT_NAME') ?: 'MCEngineVault'
 }
 
 // Set project version using a property
