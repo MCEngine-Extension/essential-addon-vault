@@ -3,12 +3,14 @@ package io.github.mcengine.extension.addon.essential.vault;
 import io.github.mcengine.api.core.MCEngineCoreApi;
 import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
 import io.github.mcengine.api.essential.extension.addon.IMCEngineEssentialAddOn;
-
+import io.github.mcengine.common.essential.MCEngineEssentialCommon;
 import io.github.mcengine.extension.addon.essential.vault.command.VaultCommand;
 import io.github.mcengine.extension.addon.essential.vault.listener.VaultListener;
 import io.github.mcengine.extension.addon.essential.vault.tabcompleter.VaultTabCompleter;
-import io.github.mcengine.extension.addon.essential.vault.util.VaultDB;
-
+import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDB;
+import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDBMySQL;
+import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDBPostgreSQL;
+import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDBSQLite;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
@@ -17,6 +19,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
 import java.lang.reflect.Field;
+import java.sql.Connection;
 import java.util.List;
 
 /**
@@ -34,6 +37,11 @@ public class Vault implements IMCEngineEssentialAddOn {
     private MCEngineExtensionLogger logger;
 
     /**
+     * Database accessor used by commands and listeners.
+     */
+    private VaultDB vaultDB;
+
+    /**
      * Initializes the Vault extension.
      * Called automatically by the MCEngine core plugin.
      *
@@ -44,12 +52,30 @@ public class Vault implements IMCEngineEssentialAddOn {
         logger = new MCEngineExtensionLogger(plugin, "AddOn", "EssentialVault");
 
         try {
+            // Pick DB implementation from main config: database.type = sqlite|mysql|postgresql
+            Connection conn = MCEngineEssentialCommon.getApi().getDBConnection();
+            String dbType;
+            try {
+                dbType = plugin.getConfig().getString("database.type", "sqlite");
+            } catch (Throwable t) {
+                dbType = "sqlite";
+            }
+            switch (dbType == null ? "sqlite" : dbType.toLowerCase()) {
+                case "mysql" -> vaultDB = new VaultDBMySQL(conn, logger);
+                case "postgresql", "postgres" -> vaultDB = new VaultDBPostgreSQL(conn, logger);
+                case "sqlite" -> vaultDB = new VaultDBSQLite(conn, logger);
+                default -> {
+                    logger.warning("Unknown database.type='" + dbType + "', defaulting to SQLite for Vault.");
+                    vaultDB = new VaultDBSQLite(conn, logger);
+                }
+            }
+
             // Ensure DB schema for the vault is present before usage.
-            VaultDB.ensureSchema(plugin, logger);
+            vaultDB.ensureSchema();
 
             // Register event listener
             PluginManager pluginManager = Bukkit.getPluginManager();
-            pluginManager.registerEvents(new VaultListener(plugin, logger), plugin);
+            pluginManager.registerEvents(new VaultListener(plugin, logger, vaultDB), plugin);
 
             // Reflectively access Bukkit's CommandMap
             Field commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
@@ -60,7 +86,7 @@ public class Vault implements IMCEngineEssentialAddOn {
             Command vaultCommand = new Command("vault") {
 
                 /** Handles command execution for {@code /vault}. */
-                private final VaultCommand handler = new VaultCommand();
+                private final VaultCommand handler = new VaultCommand(vaultDB);
 
                 /** Handles tab-completion for {@code /vault}. */
                 private final VaultTabCompleter completer = new VaultTabCompleter();

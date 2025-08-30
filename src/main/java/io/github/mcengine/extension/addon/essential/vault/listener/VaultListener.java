@@ -3,7 +3,7 @@ package io.github.mcengine.extension.addon.essential.vault.listener;
 import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
 import io.github.mcengine.extension.addon.essential.vault.command.VaultCommand;
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
-import io.github.mcengine.extension.addon.essential.vault.util.VaultDB;
+import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDB;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -35,14 +35,21 @@ public class VaultListener implements Listener {
     private final MCEngineExtensionLogger logger;
 
     /**
+     * Database accessor for vault persistence.
+     */
+    private final VaultDB vaultDB;
+
+    /**
      * Constructs a new {@link VaultListener}.
      *
      * @param plugin The plugin instance.
      * @param logger The logger instance.
+     * @param vaultDB Database accessor to use.
      */
-    public VaultListener(Plugin plugin, MCEngineExtensionLogger logger) {
+    public VaultListener(Plugin plugin, MCEngineExtensionLogger logger, VaultDB vaultDB) {
         this.plugin = plugin;
         this.logger = logger;
+        this.vaultDB = vaultDB;
     }
 
     /**
@@ -93,8 +100,8 @@ public class VaultListener implements Listener {
         String title = event.getView().getTitle();
 
         PlayerVault pv = new PlayerVault(player.getUniqueId(), rows, title, 0, java.util.Collections.emptyMap());
-        VaultDB.captureInventory(pv, inv);
-        boolean ok = VaultDB.savePlayerVault(pv, inv);
+        vaultDB.captureInventory(pv, inv);
+        boolean ok = vaultDB.savePlayerVault(pv, inv);
 
         if (ok) {
             player.sendMessage(ChatColor.GREEN + "Vault saved.");

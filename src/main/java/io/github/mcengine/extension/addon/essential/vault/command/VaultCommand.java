@@ -2,7 +2,7 @@ package io.github.mcengine.extension.addon.essential.vault.command;
 
 import io.github.mcengine.common.essential.MCEngineEssentialCommon;
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
-import io.github.mcengine.extension.addon.essential.vault.util.VaultDB;
+import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDB;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -34,6 +34,20 @@ public class VaultCommand implements CommandExecutor {
      * Permission node required to open a vault.
      */
     private static final String PERM_USE = "mcengine.essential.vault.use";
+
+    /**
+     * Database accessor for vault operations.
+     */
+    private final VaultDB vaultDB;
+
+    /**
+     * Constructs a {@link VaultCommand} with a DB accessor.
+     *
+     * @param vaultDB database accessor
+     */
+    public VaultCommand(VaultDB vaultDB) {
+        this.vaultDB = vaultDB;
+    }
 
     /**
      * Executes the {@code /vault} command.
@@ -95,8 +109,8 @@ public class VaultCommand implements CommandExecutor {
      * @param owningPlugin plugin instance for metadata association
      */
     private void openVault(Player player, int rows, String title, Plugin owningPlugin) {
-        PlayerVault pv = VaultDB.loadPlayerVault(player.getUniqueId(), rows, title);
-        Inventory inv = VaultDB.createInventoryFor(pv);
+        PlayerVault pv = vaultDB.loadPlayerVault(player.getUniqueId(), rows, title);
+        Inventory inv = vaultDB.createInventoryFor(pv);
 
         // Flag this player so InventoryCloseEvent knows to persist.
         player.setMetadata(META_VAULT_OPEN, new FixedMetadataValue(owningPlugin, true));
