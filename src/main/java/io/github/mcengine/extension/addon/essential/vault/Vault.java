@@ -7,6 +7,7 @@ import io.github.mcengine.common.essential.MCEngineEssentialCommon;
 import io.github.mcengine.extension.addon.essential.vault.command.VaultCommand;
 import io.github.mcengine.extension.addon.essential.vault.listener.VaultListener;
 import io.github.mcengine.extension.addon.essential.vault.tabcompleter.VaultTabCompleter;
+import io.github.mcengine.extension.addon.essential.vault.util.VaultConfigUtil;
 import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDB;
 import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDBMySQL;
 import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDBPostgreSQL;
@@ -15,9 +16,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.util.List;
@@ -25,7 +28,9 @@ import java.util.List;
 /**
  * Main class for the Vault extension.
  * <p>
- * Registers the {@code /vault} command and event listeners.
+ * Creates a default config (with {@code license: free}) if missing, validates the license,
+ * wires a database accessor based on {@code database.type}, and registers the
+ * {@code /vault} command and event listeners.
  */
 public class Vault implements IMCEngineEssentialAddOn {
 
@@ -42,6 +47,12 @@ public class Vault implements IMCEngineEssentialAddOn {
     private VaultDB vaultDB;
 
     /**
+     * Configuration folder path for the Vault AddOn.
+     * Used as the base for {@code config.yml}.
+     */
+    private final String folderPath = "extensions/addons/configs/MCEngineVault";
+
+    /**
      * Initializes the Vault extension.
      * Called automatically by the MCEngine core plugin.
      *
@@ -52,6 +63,18 @@ public class Vault implements IMCEngineEssentialAddOn {
         logger = new MCEngineExtensionLogger(plugin, "AddOn", "EssentialVault");
 
         try {
+            // Ensure config.yml exists (with license: free)
+            VaultConfigUtil.createConfig(plugin, folderPath, logger);
+
+            // Load and validate license
+            File configFile = new File(plugin.getDataFolder(), folderPath + "/config.yml");
+            YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+            String licenseType = config.getString("license", "free");
+            if (!"free".equalsIgnoreCase(licenseType)) {
+                logger.warning("License is not 'free'. Disabling Essential Vault AddOn.");
+                return;
+            }
+
             // Pick DB implementation from main config: database.type = sqlite|mysql|postgresql
             Connection conn = MCEngineEssentialCommon.getApi().getDBConnection();
             String dbType;
