@@ -8,8 +8,6 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.plugin.Plugin;
@@ -50,28 +48,6 @@ public class VaultListener implements Listener {
         this.plugin = plugin;
         this.logger = logger;
         this.vaultDB = vaultDB;
-    }
-
-    /**
-     * Handles player join event and sends a welcome message.
-     *
-     * @param event The player join event.
-     */
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        player.sendMessage(ChatColor.AQUA + "[Vault][essential-addon-vault] Hello " + player.getName() + ", enjoy your time!");
-    }
-
-    /**
-     * Handles player quit event and logs the departure using the extension logger.
-     *
-     * @param event The player quit event.
-     */
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        Player player = event.getPlayer();
-        logger.info(player.getName() + " has left the server.");
     }
 
     /**
