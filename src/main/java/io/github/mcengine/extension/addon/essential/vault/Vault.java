@@ -22,7 +22,6 @@ import org.bukkit.plugin.PluginManager;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.sql.Connection;
 import java.util.List;
 
 /**
@@ -76,7 +75,6 @@ public class Vault implements IMCEngineEssentialAddOn {
             }
 
             // Pick DB implementation from main config: database.type = sqlite|mysql|postgresql
-            Connection conn = MCEngineEssentialCommon.getApi().getDBConnection();
             String dbType;
             try {
                 dbType = plugin.getConfig().getString("database.type", "sqlite");
@@ -84,12 +82,12 @@ public class Vault implements IMCEngineEssentialAddOn {
                 dbType = "sqlite";
             }
             switch (dbType == null ? "sqlite" : dbType.toLowerCase()) {
-                case "mysql" -> vaultDB = new VaultDBMySQL(conn, logger);
-                case "postgresql", "postgres" -> vaultDB = new VaultDBPostgreSQL(conn, logger);
-                case "sqlite" -> vaultDB = new VaultDBSQLite(conn, logger);
+                case "mysql" -> vaultDB = new VaultDBMySQL(logger);
+                case "postgresql", "postgres" -> vaultDB = new VaultDBPostgreSQL(logger);
+                case "sqlite" -> vaultDB = new VaultDBSQLite(logger);
                 default -> {
                     logger.warning("Unknown database.type='" + dbType + "', defaulting to SQLite for Vault.");
-                    vaultDB = new VaultDBSQLite(conn, logger);
+                    vaultDB = new VaultDBSQLite(logger);
                 }
             }
 
