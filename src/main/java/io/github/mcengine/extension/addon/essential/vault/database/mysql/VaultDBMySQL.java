@@ -1,6 +1,7 @@
-package io.github.mcengine.extension.addon.essential.vault.util.db;
+package io.github.mcengine.extension.addon.essential.vault.database.mysql;
 
 import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
+import io.github.mcengine.extension.addon.essential.vault.database.VaultDB;
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
 import io.github.mcengine.extension.addon.essential.vault.model.VaultItem;
 import io.github.mcengine.extension.addon.essential.vault.util.ItemIO;
@@ -14,9 +15,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * SQLite implementation of {@link VaultDB}.
+ * MySQL implementation of {@link VaultDB}.
  */
-public class VaultDBSQLite implements VaultDB {
+public class VaultDBMySQL implements VaultDB {
 
     /** Active JDBC connection supplied by the Essential module. */
     private final Connection conn;
@@ -30,7 +31,7 @@ public class VaultDBSQLite implements VaultDB {
      * @param conn   JDBC connection
      * @param logger logger wrapper
      */
-    public VaultDBSQLite(Connection conn, MCEngineExtensionLogger logger) {
+    public VaultDBMySQL(Connection conn, MCEngineExtensionLogger logger) {
         this.conn = conn;
         this.logger = logger;
     }
@@ -42,8 +43,8 @@ public class VaultDBSQLite implements VaultDB {
                 player_uuid VARCHAR(36) PRIMARY KEY,
                 rows INT NOT NULL,
                 title TEXT,
-                updated_at TIMESTAMP
-            );
+                updated_at TIMESTAMP NULL
+            ) ENGINE=InnoDB;
             """;
         final String createItem = """
             CREATE TABLE IF NOT EXISTS essential_vault_item (
@@ -52,14 +53,14 @@ public class VaultDBSQLite implements VaultDB {
                 slot INT NOT NULL,
                 item_bytes BLOB NOT NULL,
                 PRIMARY KEY (player_uuid, page, slot)
-            );
+            ) ENGINE=InnoDB;
             """;
         try (Statement st = conn.createStatement()) {
             st.executeUpdate(createMeta);
             st.executeUpdate(createItem);
-            if (logger != null) logger.info("[VaultDB] SQLite schema ensured.");
+            if (logger != null) logger.info("[VaultDB] MySQL schema ensured.");
         } catch (SQLException e) {
-            if (logger != null) logger.warning("[VaultDB] SQLite schema ensure failed: " + e.getMessage());
+            if (logger != null) logger.warning("[VaultDB] MySQL schema ensure failed: " + e.getMessage());
         }
     }
 
@@ -80,7 +81,7 @@ public class VaultDBSQLite implements VaultDB {
                 }
             }
         } catch (SQLException e) {
-            if (logger != null) logger.warning("[VaultDB] SQLite load meta failed: " + e.getMessage());
+            if (logger != null) logger.warning("[VaultDB] MySQL load meta failed: " + e.getMessage());
         }
 
         try (PreparedStatement ps = conn.prepareStatement(
@@ -95,7 +96,7 @@ public class VaultDBSQLite implements VaultDB {
                 }
             }
         } catch (SQLException e) {
-            if (logger != null) logger.warning("[VaultDB] SQLite load items failed: " + e.getMessage());
+            if (logger != null) logger.warning("[VaultDB] MySQL load items failed: " + e.getMessage());
         }
 
         return new PlayerVault(playerId, rows, title, 0, items);
@@ -158,11 +159,11 @@ public class VaultDBSQLite implements VaultDB {
             }
 
             conn.commit();
-            if (logger != null) logger.info("[VaultDB] SQLite saved vault for " + vault.getPlayerId());
+            if (logger != null) logger.info("[VaultDB] MySQL saved vault for " + vault.getPlayerId());
             return true;
         } catch (SQLException e) {
             try { conn.rollback(); } catch (SQLException ignore) {}
-            if (logger != null) logger.warning("[VaultDB] SQLite save failed: " + e.getMessage());
+            if (logger != null) logger.warning("[VaultDB] MySQL save failed: " + e.getMessage());
             return false;
         } finally {
             try { conn.setAutoCommit(originalAutoCommit); } catch (SQLException ignore) {}
@@ -189,7 +190,7 @@ public class VaultDBSQLite implements VaultDB {
             return true;
         } catch (SQLException e) {
             try { conn.rollback(); } catch (SQLException ignore) {}
-            if (logger != null) logger.warning("[VaultDB] SQLite clear failed: " + e.getMessage());
+            if (logger != null) logger.warning("[VaultDB] MySQL clear failed: " + e.getMessage());
             return false;
         } finally {
             try { conn.setAutoCommit(originalAutoCommit); } catch (SQLException ignore) {}

@@ -3,7 +3,7 @@ package io.github.mcengine.extension.addon.essential.vault.listener;
 import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
 import io.github.mcengine.extension.addon.essential.vault.command.VaultCommand;
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
-import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDB;
+import io.github.mcengine.extension.addon.essential.vault.database.VaultDB;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;

@@ -2,7 +2,7 @@ package io.github.mcengine.extension.addon.essential.vault.command;
 
 import io.github.mcengine.common.essential.MCEngineEssentialCommon;
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
-import io.github.mcengine.extension.addon.essential.vault.util.db.VaultDB;
+import io.github.mcengine.extension.addon.essential.vault.database.VaultDB;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;

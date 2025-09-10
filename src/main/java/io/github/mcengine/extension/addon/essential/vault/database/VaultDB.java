@@ -1,4 +1,4 @@
-package io.github.mcengine.extension.addon.essential.vault.util.db;
+package io.github.mcengine.extension.addon.essential.vault.database;
 
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
 import io.github.mcengine.extension.addon.essential.vault.model.VaultItem;

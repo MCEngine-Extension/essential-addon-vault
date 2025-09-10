@@ -1,6 +1,7 @@
-package io.github.mcengine.extension.addon.essential.vault.util.db;
+package io.github.mcengine.extension.addon.essential.vault.database.postgresql;
 
 import io.github.mcengine.api.core.extension.logger.MCEngineExtensionLogger;
+import io.github.mcengine.extension.addon.essential.vault.database.VaultDB;
 import io.github.mcengine.extension.addon.essential.vault.model.PlayerVault;
 import io.github.mcengine.extension.addon.essential.vault.model.VaultItem;
 import io.github.mcengine.extension.addon.essential.vault.util.ItemIO;
