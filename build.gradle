@@ -56,7 +56,7 @@ dependencies {
 
     compileOnly 'io.github.mcengine:core-api:2025.0.9-10'
     compileOnly 'io.github.mcengine:essential-api:2025.0.9-10'
-    compileOnly 'io.github.mcengine:essential-common:2025.0.9-10'
+    compileOnly 'io.github.mcengine:essential-common:2025.0.9-10-1'
 }
 
 shadowJar {
