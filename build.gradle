@@ -54,9 +54,9 @@ allprojects {
 dependencies {
     compileOnly 'org.spigotmc:spigot-api:1.21.8-R0.1-SNAPSHOT'
 
-    compileOnly 'io.github.mcengine:core-api:2025.0.9-18'
-    compileOnly 'io.github.mcengine:essential-api:2025.0.9-18'
-    compileOnly 'io.github.mcengine:essential-common:2025.0.9-18'
+    compileOnly 'io.github.mcengine:core-api:2025.0.9-19'
+    compileOnly 'io.github.mcengine:essential-api:2025.0.9-19'
+    compileOnly 'io.github.mcengine:essential-common:2025.0.9-19'
 }
 
 shadowJar {
